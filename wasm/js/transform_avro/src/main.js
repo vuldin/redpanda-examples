@@ -1,4 +1,5 @@
 const avro = require("avsc");
+const protobuf = require('protobufjs')
 const {
   SimpleTransform,
   PolicyError,
@@ -37,29 +38,61 @@ const avroType = avro.Type.forSchema({
   ]
 });
 
+const jsonDescriptor = {
+  "nested": {
+    "market_activity": {
+      "fields": {
+        "Date": { "type": "string", "id": 1 },
+        "CloseLast": { "type": "string", "id": 2 },
+        "Volume": { "type": "string", "id": 3 },
+        "Open": { "type": "string", "id": 4 },
+        "High": { "type": "string", "id": 5 },
+        "Low": { "type": "string", "id": 6 },
+      }
+    }
+  }
+}
+const protoRoot = protobuf.Root.fromJSON(jsonDescriptor);
+const protoSchema = protoRoot.lookupType('market_activity');
+
 /* Auxiliar transform function for records */
-const toAvro = (record) => {  
+const toAvro = (record) => {
   const obj = JSON.parse(record.value);
-  const newRecord = {
+  return {
     ...record,
     value: avroType.toBuffer(obj),
   };
-  return newRecord;  
+}
+
+const toProto = (record) => {
+  const obj = JSON.parse(record.value);
+  return {
+    ...record,
+    value: protoSchema.encode(obj).finish(),
+  };
 }
 
 /* Transform function */
 transform.processRecord((batch) => {
   const result = new Map();
-  const transformedBatch = batch.map(({ header, records }) => {
+  const avroTransformedBatch = batch.map(({ header, records }) => {
     return {
       header,
       records: records.map(toAvro),
     };
   });
-  result.set("result", transformedBatch);
+  const protoTransformedBatch = batch.map(({ header, records }) => {
+    return {
+      header,
+      records: records.map(toProto),
+    };
+  });
+  result.set("avro", avroTransformedBatch);
+  result.set("proto", protoTransformedBatch);
   // processRecord function returns a Promise
   return Promise.resolve(result);
 });
 
 exports["default"] = transform;
-exports["schema"] = avroType;
+exports["avro"] = avroType;
+exports["proto"] = protoSchema;

@@ -16,12 +16,30 @@ const recordBatch = createRecordBatch({
 
 /* Mocha test transform json to avro */
 describe("transform", function() {
+  it("contains all transforms", function () {
+    return transform.default.apply(recordBatch).then(result => {
+      assert.equal(result.size, 2);
+    });
+  });
+
   it("transforms json to avro", function() {
     return transform.default.apply(recordBatch).then(result => {
-      assert.equal(result.size, 1);
-      assert(result.get("result"));
-      result.get("result").records.forEach(avroRecord => {
-        obj = transform.schema.fromBuffer(avroRecord.value);
+      assert(result.get("avro"));
+      result.get("avro").records.forEach(avroRecord => {
+        obj = transform.avro.fromBuffer(avroRecord.value);
+        assert.equal(
+          JSON.stringify(obj),
+          JSON.stringify(record)
+        );
+      })
+    });
+  });
+
+  it("transforms json to proto", function() {
+    return transform.default.apply(recordBatch).then(result => {
+      assert(result.get("proto"));
+      result.get("proto").records.forEach(avroRecord => {
+        obj = transform.proto.decode(avroRecord.value);
         assert.equal(
           JSON.stringify(obj),
           JSON.stringify(record)
