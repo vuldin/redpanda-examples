@@ -1,0 +1,65 @@
+services:
+  redpanda:
+    image: vectorized/redpanda:v21.11.11
+    command:
+      - redpanda start
+      - --smp 1
+      - --overprovisioned
+      - --node-id 0
+      - --kafka-addr PLAINTEXT://0.0.0.0:29092,OUTSIDE://0.0.0.0:9092
+      - --advertise-kafka-addr PLAINTEXT://redpanda:29092,OUTSIDE://localhost:9092
+      - --pandaproxy-addr 0.0.0.0:8082
+      - --advertise-pandaproxy-addr localhost:8082
+    ports:
+      - 8081:8081
+      - 8082:8082
+      - 9092:9092
+      - 29092:29092
+  kowl:
+    image: quay.io/cloudhut/kowl:master-1d07695
+    entrypoint: /bin/sh
+    command: -c "echo \"$$KOWL_CONFIG_FILE\" > /tmp/config.yml; /app/kowl"
+    environment:
+      CONFIG_FILEPATH: /tmp/config.yml
+      KOWL_CONFIG_FILE: |
+        kafka:
+          brokers: ["redpanda:29092"]
+          schemaRegistry:
+            enabled: true
+            urls: ["http://redpanda:8081"]
+        connect:
+          enabled: true
+          clusters:
+            - name: dbz
+              url: http://debezium:8083
+    ports:
+      - 8080:8080
+    depends_on:
+      - redpanda
+
+  owl-shop:
+    #image: quay.io/cloudhut/owl-shop:v1.2.0
+    image: quay.io/cloudhut/owl-shop:latest
+    environment:
+      # - SHOP_KAFKA_BROKERS=localhost:9092
+      - SHOP_KAFKA_BROKERS=redpanda:29092
+      - SHOP_KAFKA_TOPICREPLICATIONFACTOR=1
+      - SHOP_TRAFFIC_INTERVAL_RATE=1
+      - SHOP_TRAFFIC_INTERVAL_DURATION=0.1s
+    depends_on:
+      - redpanda
+
+  debezium:
+    image: debezium/connect:1.9
+    hostname: debezium
+    depends_on:
+      - redpanda
+    ports:
+      - "8083:8083"
+    environment:
+      BOOTSTRAP_SERVERS: "redpanda:29092"
+      GROUP_ID: dbz-connect-group
+      REST_ADVERTISED_HOST_NAME: debezium
+      CONFIG_STORAGE_TOPIC: dbz-connect-configs
+      OFFSET_STORAGE_TOPIC: dbz-connect-offsets
+      STATUS_STORAGE_TOPIC: dbz-connect-status
