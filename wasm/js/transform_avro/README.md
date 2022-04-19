@@ -5,16 +5,16 @@ This example JavaScript transform uses the async engine to map JSON formatted me
 # Tool versions
 
 Versions for tools used in this project are listed below.
-Other versions may work, but make sure to use the following versions if you run into issues:
+Other versions may work, but make sure to use the following versions or higher if you run into issues:
 
-| Tool | Version | Notes |
-| - | - | - |
+| Tool | Version |
+| - | - |
 | curl | 7.77.0 |
 | docker | v20.10.13 |
 | docker-compose | v1.29.2 |
 | jq | jq-1.6 |
-| node | v17.7.2 | node >= 11.15.0 has been verified |
-| rpk | v21.11.9 | rev ad9c5af53cc2ac68170d4a4d7c6e5f25c0d17f69 |
+| node | v12.22.11 |
+| rpk | v21.11.9 |
 
 ## Start Redpanda Container
 
@@ -27,15 +27,28 @@ To run the example locally, spin up a Redpanda node with Docker:
  ⠿ Container redpanda        Started
 ```
 
-## Build & Deploy Coproc
+## Populate the registry with schemas
 
-Use `npm` to package up the JavaScript application:
+The registry needs to have schemas at registered subjects, which can be done with the following commands:
+
+```bash
+> cd redpanda-examples/clients/js
+> npm install
+> node registry subject avro-market-activity-value add ../../schemas/market_activity.avsc
+```
+
+This uploads a schema to the subject `avro-market-activity-value`.
+Run `node registry -h` for more details on this registry CLI.
+
+## Build the transform bundle
+
+Use `npm` to bundle up the JavaScript application:
 
 ```bash
 > cd wasm/js/transform_avro
-> npm install    # install js dependencies in node_modules
+> npm install    # install js dependencies
 > npm test       # run mocha tests
-> npm run build  # bundle js application with webpack
+> npm run build  # bundle js application with esbuild
 ```
 
 ## Create the topic
@@ -59,7 +72,7 @@ market_activity  1           1
 
 The `_schemas` topic is automatically generated when the schemas are uploaded to the registry.
 
-## Deploy the transform script to Redpanda
+## Deploy the transform bundle to Redpanda
 
 ```bash
 > rpk wasm deploy dist/main.js --name json2avro --description "Transforms JSON to AVRO"
@@ -81,7 +94,6 @@ Start the producer (in a third terminal):
 
 ```bash
 > cd clients/js
-> npm install
 > node producer -rd Date
 ```
 
@@ -96,7 +108,7 @@ The coprocessor log on the Redpanda container shows status information and possi
 
 ```bash
 > docker exec --user root -it redpanda /bin/bash
-tail -100f /var/lib/redpanda/coprocessor/logs/wasm
+> tail -100f /var/lib/redpanda/coprocessor/logs/wasm
 ```
 
 # Cleanup

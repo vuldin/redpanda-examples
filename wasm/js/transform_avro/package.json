@@ -7,8 +7,9 @@
     "iwt": "./bin/index.js"
   },
   "scripts": {
-    "build": "./webpack.js",
-    "test": "node_modules/mocha/bin/mocha"
+    "build": "node esbuild.js",
+    "test": "mocha",
+    "pretest": "npm run build"
   },
   "keywords": [
     "inline-wasm-transform",
@@ -18,11 +19,12 @@
   "license": "ISC",
   "dependencies": {
     "@vectorizedio/wasm-api": "21.12.1-wasm-beta1",
-    "avsc": "^5.7.3"
+    "avsc": "^5.7.3",
+    "esbuild": "^0.14.27"
   },
   "devDependencies": {
     "mocha": "9.2.2",
-    "ts-loader": "9.2.8",
-    "webpack": "5.70.0"
+    "nock": "^13.2.4",
+    "ts-loader": "9.2.8"
   }
 }
